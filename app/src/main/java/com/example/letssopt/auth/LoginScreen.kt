@@ -1,14 +1,5 @@
-package com.example.letssopt
+package com.example.letssopt.auth
 
-import android.app.Activity
-import android.content.Intent
-import android.os.Bundle
-import android.widget.Toast
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -28,60 +19,21 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.letssopt.ui.theme.LETSSOPTTheme
-
-class LoginActivity : ComponentActivity() {
-    private val loginViewModel: LoginViewModel by viewModels()
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-
-        if (AuthPreferenceManager.isLoggedIn(this)) {
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
-            return
-        }
-
-        loginViewModel.setRegisteredAccount(
-            AuthPreferenceManager.getRegisteredEmail(this),
-            AuthPreferenceManager.getRegisteredPassword(this)
-        )
-
-        setContent {
-            LETSSOPTTheme {
-                LoginScreen(loginViewModel)
-            }
-        }
-    }
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen(viewModel: LoginViewModel) {
-    val context = LocalContext.current
+fun LoginScreen(
+    viewModel: LoginViewModel,
+    onLoginClick: () -> Unit,
+    onSignUpClick: () -> Unit
+) {
     val uiState = viewModel.uiState
-
-    // 회원가입 화면에서 결과 받아오기
-    val signUpLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val data = result.data
-            if (data != null) {
-                val savedEmail = data.getStringExtra("email") ?: ""
-                val savedPassword = data.getStringExtra("password") ?: ""
-                viewModel.setRegisteredAccount(savedEmail, savedPassword)
-                AuthPreferenceManager.saveRegisteredAccount(context, savedEmail, savedPassword)
-            }
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -160,31 +112,22 @@ fun LoginScreen(viewModel: LoginViewModel) {
             fontSize = 14.sp,
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable {
-                    val intent = Intent(context, SignUpActivity::class.java)
-                    signUpLauncher.launch(intent)
-                }
+                .clickable(onClick = onSignUpClick)
                 .padding(bottom = 16.dp),
             textAlign = TextAlign.Center
         )
 
         Button(
-            onClick = {
-                if (viewModel.isLoginSuccess()) {
-                    Toast.makeText(context, "로그인에 성공했습니다", Toast.LENGTH_SHORT).show()
-                    AuthPreferenceManager.setLoggedIn(context, true)
-                    val intent = Intent(context, MainActivity::class.java)
-                    context.startActivity(intent)
-                    (context as? Activity)?.finish()
-                } else {
-                    Toast.makeText(context, "로그인에 실패했습니다", Toast.LENGTH_SHORT).show()
-                }
-            },
+            onClick = onLoginClick,
+            enabled = uiState.isLoginButtonEnabled,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
             shape = RoundedCornerShape(8.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF0558))
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFFF0558),
+                disabledContainerColor = Color(0xFF555555)
+            )
         ) {
             Text(text = "로그인", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }

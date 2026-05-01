@@ -1,4 +1,4 @@
-package com.example.letssopt
+package com.example.letssopt.auth
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -10,7 +10,10 @@ data class LoginUiState(
     val password: String = "",
     val registeredEmail: String = "",
     val registeredPassword: String = ""
-)
+) {
+    val isLoginButtonEnabled: Boolean
+        get() = email.isNotBlank() && password.isNotBlank()
+}
 
 class LoginViewModel : ViewModel() {
     var uiState by mutableStateOf(LoginUiState())
@@ -31,7 +34,7 @@ class LoginViewModel : ViewModel() {
         )
     }
 
-    fun isLoginSuccess(): Boolean {
+    fun login(): Boolean {
         return uiState.email.isNotBlank() &&
             uiState.password.isNotBlank() &&
             uiState.email == uiState.registeredEmail &&
