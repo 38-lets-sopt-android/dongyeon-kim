@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -25,10 +26,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -41,11 +38,25 @@ import androidx.compose.ui.unit.sp
 import com.example.letssopt.ui.theme.LETSSOPTTheme
 
 class LoginActivity : ComponentActivity() {
+    private val loginViewModel: LoginViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (AuthPreferenceManager.isLoggedIn(this)) {
+            startActivity(Intent(this, MainActivity::class.java))
+            finish()
+            return
+        }
+
+        loginViewModel.setRegisteredAccount(
+            AuthPreferenceManager.getRegisteredEmail(this),
+            AuthPreferenceManager.getRegisteredPassword(this)
+        )
+
         setContent {
             LETSSOPTTheme {
-                LoginScreen()
+                LoginScreen(loginViewModel)
             }
         }
     }
@@ -53,16 +64,9 @@ class LoginActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LoginScreen() {
+fun LoginScreen(viewModel: LoginViewModel) {
     val context = LocalContext.current
-
-    // 회원가입 화면에서 받아온 정보
-    var savedEmail by remember { mutableStateOf("") }
-    var savedPassword by remember { mutableStateOf("") }
-
-    // 입력값
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    val uiState = viewModel.uiState
 
     // 회원가입 화면에서 결과 받아오기
     val signUpLauncher = rememberLauncherForActivityResult(
@@ -71,8 +75,10 @@ fun LoginScreen() {
         if (result.resultCode == Activity.RESULT_OK) {
             val data = result.data
             if (data != null) {
-                savedEmail = data.getStringExtra("email") ?: ""
-                savedPassword = data.getStringExtra("password") ?: ""
+                val savedEmail = data.getStringExtra("email") ?: ""
+                val savedPassword = data.getStringExtra("password") ?: ""
+                viewModel.setRegisteredAccount(savedEmail, savedPassword)
+                AuthPreferenceManager.saveRegisteredAccount(context, savedEmail, savedPassword)
             }
         }
     }
@@ -108,8 +114,8 @@ fun LoginScreen() {
         Text(text = "이메일", color = Color.White, fontSize = 14.sp)
         Spacer(modifier = Modifier.height(8.dp))
         TextField(
-            value = email,
-            onValueChange = { email = it },
+            value = uiState.email,
+            onValueChange = viewModel::onEmailChanged,
             placeholder = { Text("이메일 주소를 입력하세요", color = Color(0xFF6E6E6E)) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(8.dp),
@@ -129,8 +135,8 @@ fun LoginScreen() {
         Text(text = "비밀번호", color = Color.White, fontSize = 14.sp)
         Spacer(modifier = Modifier.height(8.dp))
         TextField(
-            value = password,
-            onValueChange = { password = it },
+            value = uiState.password,
+            onValueChange = viewModel::onPasswordChanged,
             placeholder = { Text("비밀번호를 입력하세요", color = Color(0xFF6E6E6E)) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(8.dp),
@@ -164,12 +170,12 @@ fun LoginScreen() {
 
         Button(
             onClick = {
-                if (email.isNotEmpty() && password.isNotEmpty()
-                    && email == savedEmail && password == savedPassword
-                ) {
+                if (viewModel.isLoginSuccess()) {
                     Toast.makeText(context, "로그인에 성공했습니다", Toast.LENGTH_SHORT).show()
+                    AuthPreferenceManager.setLoggedIn(context, true)
                     val intent = Intent(context, MainActivity::class.java)
                     context.startActivity(intent)
+                    (context as? Activity)?.finish()
                 } else {
                     Toast.makeText(context, "로그인에 실패했습니다", Toast.LENGTH_SHORT).show()
                 }
